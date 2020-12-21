@@ -12,7 +12,7 @@ It generates a random key of 16 bytes and a random counter value.
 
 Here the AES Cipher is operating in CTR Mode, i.e the input is not encrypted through the cipher directly. (So thankful that this came in the semester this is a part of my course 😆)
 
-![CTR Mode](https://upload.wikimedia.org/wikipedia/commons/thumb/3/3c/CTR_decryption_2.svg/601px-CTR_decryption_2.svg.png)
+![CTR Mode](images/aes_ctr.png)
 Source: Wikipedia
 
 Output = (Encrypt(Key, Counter)) ^ Input block
@@ -20,7 +20,7 @@ Output = (Encrypt(Key, Counter)) ^ Input block
 The code encrypts the input 16 bytes at a time, with the remaining bytes (if any) being padded with zeroes and encrypted.
 
 
-The output file consists of the 16 byte counter value followed by the encrypted bytes/
+The output file consists of the 16 byte counter value followed by the encrypted bytes.
 
 
 It read from 0 (input), encrypted it in blocks of 16, calling the function inc_counter each time to increment the counter and writes the output block to 1 (output).
@@ -28,18 +28,19 @@ It read from 0 (input), encrypted it in blocks of 16, calling the function inc_c
 It is here that I resorted to my favorite tool: print statements. I had a hunch that it was probably the inc_counter part that was buggy, since I didn't recognize its implementation and since it was calling a library function to encrypt the AES block, which is probably correct. I added a print statement at the end to see the counter value.
 
 
-![](repeatingcounter.png)
+![](images/repeatingcounter.png)
 <image of same counter>
 
 Do you see the problem? The counter value never gets updated. 
-`struct ctr_state {
-	uint8_t key_bytes[16];
-	uint8_t counter[16];
-};`
+
+    struct ctr_state {
+        uint8_t key_bytes[16];
+        uint8_t counter[16];
+    };
 
 The state being passed to the encrypt function has the above format.
 
-`ctr_block_encrypt(struct ctr_state state, uint8_t *in, uint8_t *out)`
+    ctr_block_encrypt(struct ctr_state state, uint8_t *in, uint8_t *out)`
 
 If you look at the function signature, the problem is apparent: State is being passed by value. Thus the counter inside the state gets copied and the original state is never modified.
 
@@ -63,7 +64,7 @@ However, we need 16 bytes of known input.
 
 I explored the Wikipedia page some more, and found that a PNG file is divided into blocks with each block having the following structure:
 
-![](png_block_structure.png)
+![](images/png_block_structure.png)
 
 
 
@@ -185,9 +186,9 @@ In this case, we have already found the first cipher block, but we still need to
 
 The output file is 5548 bytes. Without the 16 byte counter value, it is 5532 bytes.
 
-5532 / 16 ~ 345 blocks
-5532 % 16 = 12
-The left over block (12 bytes) would be the last block. We know from the implementation that it'll be padded with zeroes, so we know the last 4 bytes.
+5532 / 16 ~ 345 blocks  
+5532 % 16 = 12   
+The left over block (12 bytes)  would be the last block. We know from the implementation that it'll be padded with zeroes, so we know the last 4 bytes.
 
 Here is where the PNG structure saves the day again, the PNG file ends with the IENDBlock. It is of zero size, its type bytes are known and its CRC is also known (since there is no data). Thus we also know the last 16 bytes.
 
